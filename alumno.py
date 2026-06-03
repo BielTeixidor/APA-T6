@@ -1,3 +1,17 @@
+"""
+Tratamiento de ficheros de notas de alumnos mediante expresiones regulares.
+
+Autor: Biel Teixidor Cladellas
+
+Este fichero define la clase 'Alumno', que almacena el número de
+identificación, el nombre completo y la lista de notas de un alumno, y la
+función 'leeAlumnos()', que lee un fichero de texto con los datos de varios
+alumnos y devuelve un diccionario indexado por el nombre de cada uno.
+"""
+
+import re
+
+
 class Alumno:
     """
     Clase usada para el tratamiento de las notas de los alumnos. Cada uno
@@ -42,3 +56,40 @@ class Alumno:
         completo y la nota media del alumno con un decimal.
         """
         return f'{self.numIden}\t{self.nombre}\t{self.media():.1f}'
+
+
+def leeAlumnos(ficAlum):
+    """
+    Lee el fichero de texto 'ficAlum' con los datos de los alumnos y devuelve
+    un diccionario en el que la clave es el nombre de cada alumno y el valor el
+    objeto 'Alumno' correspondiente.
+
+    Cada línea del fichero contiene el número de identificación, el nombre
+    completo y la lista de notas, separados por espacios y/o tabuladores.
+
+    >>> alumnos = leeAlumnos('alumnos.txt')
+    >>> for alumno in alumnos:
+    ...     print(alumnos[alumno])
+    ...
+    171 Blanca Agirrebarrenetse 9.5
+    23 Carles Balcell de Lara 4.9
+    68 David Garcia Fuster     7.0
+    """
+    patron = r'(\d+)\s+([^\d]+?)\s+([\d.]+(?:\s+[\d.]+)*)\s*$'
+
+    alumnos = {}
+    with open(ficAlum, 'rt', encoding='utf-8') as fichero:
+        for linea in fichero:
+            encaje = re.match(patron, linea)
+            if encaje:
+                numIden = int(encaje.group(1))
+                nombre = encaje.group(2)
+                notas = [float(nota) for nota in encaje.group(3).split()]
+                alumnos[nombre] = Alumno(nombre, numIden, notas)
+
+    return alumnos
+
+
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod(optionflags=doctest.NORMALIZE_WHITESPACE, verbose=True)

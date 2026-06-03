@@ -254,15 +254,254 @@ funcionamiento de su función.
 
 ##### Ejecución de los tests unitarios de `alumno.py`
 
-Inserte a continuación una captura de pantalla que muestre el resultado de ejecutar el
-fichero `alumno.py` con la opción *verbosa*, de manera que se muestre el
-resultado de la ejecución de los tests unitarios.
+![doctest-alumno](doctest-alumno.png)
 
 ##### Código desarrollado
 
-Inserte a continuación los códigos fuente desarrollados en esta tarea, usando los
-comandos necesarios para que se realice el realce sintáctico en Python del mismo (no
-vale insertar una imagen o una captura de pantalla, debe hacerse en formato *markdown*).
+###### `alumno.py` 
+
+```python
+"""
+Tratamiento de ficheros de notas de alumnos mediante expresiones regulares.
+
+Autor: Biel Teixidor Cladellas
+
+Este fichero define la clase 'Alumno', que almacena el número de
+identificación, el nombre completo y la lista de notas de un alumno, y la
+función 'leeAlumnos()', que lee un fichero de texto con los datos de varios
+alumnos y devuelve un diccionario indexado por el nombre de cada uno.
+"""
+
+import re
+
+
+class Alumno:
+    """
+    Clase usada para el tratamiento de las notas de los alumnos. Cada uno
+    incluye los atributos siguientes:
+
+    numIden:   Número de identificación. Es un número entero que, en caso
+               de no indicarse, toma el valor por defecto 'numIden=-1'.
+    nombre:    Nombre completo del alumno.
+    notas:     Lista de números reales con las distintas notas de cada alumno.
+    """
+
+    def __init__(self, nombre, numIden=-1, notas=[]):
+        self.numIden = numIden
+        self.nombre = nombre
+        self.notas = [nota for nota in notas]
+
+    def __add__(self, other):
+        """
+        Devuelve un nuevo objeto 'Alumno' con una lista de notas ampliada con
+        el valor pasado como argumento. De este modo, añadir una nota a un
+        Alumno se realiza con la orden 'alumno += nota'.
+        """
+        return Alumno(self.nombre, self.numIden, self.notas + [other])
+
+    def media(self):
+        """
+        Devuelve la nota media del alumno.
+        """
+        return sum(self.notas) / len(self.notas) if self.notas else 0
+
+    def __repr__(self):
+        """
+        Devuelve la representación 'oficial' del alumno. A partir de copia
+        y pega de la cadena obtenida es posible crear un nuevo Alumno idéntico.
+        """
+        return f'Alumno("{self.nombre}", {self.numIden!r}, {self.notas!r})'
+
+    def __str__(self):
+        """
+        Devuelve la representación 'bonita' del alumno. Visualiza en tres
+        columnas separas por tabulador el número de identificación, el nombre
+        completo y la nota media del alumno con un decimal.
+        """
+        return f'{self.numIden}\t{self.nombre}\t{self.media():.1f}'
+
+
+def leeAlumnos(ficAlum):
+    """
+    Lee el fichero de texto 'ficAlum' con los datos de los alumnos y devuelve
+    un diccionario en el que la clave es el nombre de cada alumno y el valor el
+    objeto 'Alumno' correspondiente.
+
+    Cada línea del fichero contiene el número de identificación, el nombre
+    completo y la lista de notas, separados por espacios y/o tabuladores.
+
+    >>> alumnos = leeAlumnos('alumnos.txt')
+    >>> for alumno in alumnos:
+    ...     print(alumnos[alumno])
+    ...
+    171 Blanca Agirrebarrenetse 9.5
+    23 Carles Balcell de Lara 4.9
+    68 David Garcia Fuster     7.0
+    """
+    patron = r'(\d+)\s+([^\d]+?)\s+([\d.]+(?:\s+[\d.]+)*)\s*$'
+
+    alumnos = {}
+    with open(ficAlum, 'rt', encoding='utf-8') as fichero:
+        for linea in fichero:
+            encaje = re.match(patron, linea)
+            if encaje:
+                numIden = int(encaje.group(1))
+                nombre = encaje.group(2)
+                notas = [float(nota) for nota in encaje.group(3).split()]
+                alumnos[nombre] = Alumno(nombre, numIden, notas)
+
+    return alumnos
+
+
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod(optionflags=doctest.NORMALIZE_WHITESPACE, verbose=True)
+```
+
+###### `horas.py`
+
+```python
+"""
+Normalización de expresiones horarias mediante expresiones regulares.
+
+Autor: Biel Teixidor Cladellas
+
+Este fichero define la función 'normalizaHoras(ficText, ficNorm)', que lee el
+fichero de texto 'ficText', busca en él expresiones horarias escritas en los
+distintos formatos habituales del castellano y escribe en 'ficNorm' el mismo
+texto con dichas expresiones normalizadas al formato estándar HH:MM. Las
+expresiones horarias incorrectas se dejan tal cual.
+"""
+
+import re
+
+
+# Para cada partícula del día se indica, mediante un diccionario, la hora del
+# reloj de 24 h (0-23) que corresponde a cada hora hablada (reloj de 12 h, de
+# 1 a 12). Si la hora hablada no figura en el diccionario, la expresión es
+# incorrecta (p. ej. 'las 11 de la tarde').
+_PERIODOS = {
+    'madrugada': {1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6},
+    'mañana':    {4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10, 11: 11, 12: 12},
+    'mediodía':  {12: 12, 1: 13, 2: 14, 3: 15},
+    'tarde':     {3: 15, 4: 16, 5: 17, 6: 18, 7: 19, 8: 20},
+    'noche':     {8: 20, 9: 21, 10: 22, 11: 23, 12: 0, 1: 1, 2: 2, 3: 3, 4: 4},
+}
+
+# Minutos asociados a cada partícula relativa ('en punto', 'y cuarto', ...).
+_RELATIVOS = {
+    'en punto': 0,
+    'y cuarto': 15,
+    'y media': 30,
+    'menos cuarto': 45,
+}
+
+
+def _normaliza(encaje):
+    """
+    Recibe un objeto 'match' con una posible expresión horaria y devuelve su
+    versión normalizada (HH:MM). Si la expresión es incorrecta, devuelve el
+    texto original sin modificar.
+    """
+    original = encaje.group(0)
+
+    # --- Formato estándar HH:MM ('8:27', '08:27') ---------------------------
+    if encaje.group('h24') is not None:
+        hora = int(encaje.group('h24'))
+        minuto = int(encaje.group('m24'))
+        if hora <= 23 and minuto <= 59:
+            return f'{hora:02d}:{minuto:02d}'
+        return original
+
+    hora = int(encaje.group('hora'))
+    hflag = encaje.group('hflag')
+    minh = encaje.group('minh')
+    rel = encaje.group('rel')
+    per = encaje.group('per')
+
+    # Un número suelto, sin 'h', sin partícula relativa ni de periodo, no es
+    # una expresión horaria (p. ej. 'las 7 puertas').
+    if hflag is None and rel is None and per is None:
+        return original
+
+    if hflag is not None:
+        # Formato 'HhMm' / 'Hh'. La hora hablada y los minutos son directos.
+        minuto = int(minh) if minh is not None else 0
+    elif rel is not None:
+        # Formato relativo: 'en punto', 'y cuarto', 'y media', 'menos cuarto'.
+        rel = ' '.join(rel.split())
+        minuto = _RELATIVOS[rel]
+        if rel == 'menos cuarto':
+            hora -= 1
+    else:
+        # Sólo partícula de periodo: 'las 12 de la noche'.
+        minuto = 0
+
+    if minuto > 59:
+        return original
+
+    if per is not None:
+        # Reloj de 12 h ajustado a la franja del día indicada.
+        hora24 = _PERIODOS[per].get(hora)
+        if hora24 is None:
+            return original
+        return f'{hora24:02d}:{minuto:02d}'
+
+    if rel is not None:
+        # Relativo sin periodo: reloj de 12 h (1-12), resultado en 00:00-11:59.
+        if not 1 <= int(encaje.group('hora')) <= 12:
+            return original
+        return f'{hora % 12:02d}:{minuto:02d}'
+
+    # Formato 'HhMm' sin periodo: reloj de 24 h.
+    if hora <= 23:
+        return f'{hora:02d}:{minuto:02d}'
+    return original
+
+
+# Expresión regular que reúne todos los formatos admitidos. El orden de las
+# alternativas importa: las más específicas van antes que las más generales.
+_PATRON = r"""
+    (?<!\d)
+    (?:
+        (?P<h24>\d{1,2}):(?P<m24>\d{2})                     # 8:27 / 08:27
+      |
+        (?P<hora>\d{1,2})
+        (?:
+            (?P<hflag>h)(?P<minh>\d{1,2})?m?               # 8h / 18h45m
+          |
+            \s+(?P<rel>en\s+punto|y\s+cuarto
+                       |y\s+media|menos\s+cuarto)          # 8 y media
+        )?
+        (?:\s+de(?:\s+la|l)\s+
+            (?P<per>mañana|mediodía|tarde|noche|madrugada))?  # de la tarde
+    )
+    (?!\d)
+"""
+
+
+def normalizaHoras(ficText, ficNorm):
+    """
+    Lee el fichero 'ficText', normaliza todas las expresiones horarias que
+    encuentre y escribe el resultado en el fichero 'ficNorm'. Las expresiones
+    horarias incorrectas se dejan sin modificar.
+    """
+    with open(ficText, 'rt', encoding='utf-8') as fEntrada, \
+         open(ficNorm, 'wt', encoding='utf-8') as fSalida:
+        for linea in fEntrada:
+            fSalida.write(re.sub(_PATRON, _normaliza, linea, flags=re.VERBOSE))
+
+
+
+
+if __name__ == '__main__':
+    import sys
+    if len(sys.argv) == 3:
+        normalizaHoras(sys.argv[1], sys.argv[2])
+    else:
+        normalizaHoras('horas.txt', 'horasNorm.txt')
+
+```
 
 ##### Subida del resultado al repositorio GitHub y *pull-request*
 
