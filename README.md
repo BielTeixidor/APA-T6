@@ -5,8 +5,7 @@
 > [!Important]
 > Introduzca a continuación su nombre y apellidos:
 >
-> Fulano Mengano Zutano
-
+> Biel Teixidor Cladellas
 ## Aviso Importante
 
 > [!Caution]
